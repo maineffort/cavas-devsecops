@@ -9,10 +9,10 @@
     <relativePath />
   </parent>
 
-  <artifactId>anchore-container-scanner-mod</artifactId>
+  <artifactId>anchore-container-scanner</artifactId>
   <version>1.0.20-SNAPSHOT</version>
   <packaging>hpi</packaging>
-  <name>Anchore Container Image Scanner Plugin Modified</name>
+  <name>Anchore Container Image Scanner Plugin</name>
   <description>Integrates Jenkins with the Anchore Image Scanner</description>
 
   <url>https://wiki.jenkins-ci.org/display/JENKINS/Anchore+Container+Image+Scanner+Plugin</url>
@@ -101,19 +101,32 @@
       <artifactId>credentials</artifactId>
       <version>2.1.16</version>
     </dependency>
-
     <dependency>
       <groupId>mysql</groupId>
       <artifactId>mysql-connector-java</artifactId>
       <version>8.0.15</version>
     </dependency>
-
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-engine</artifactId>
-      <version>5.3.1</version>
-      <scope>test</scope>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.8.7</version>
     </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jcl-over-slf4j</artifactId>
+      <version>1.7.26</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-nop</artifactId>
+      <version>1.7.26</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-logging</groupId>
+      <artifactId>commons-logging</artifactId>
+      <version>1.2</version>
+    </dependency>
+
   </dependencies>
 
   <!--
@@ -220,12 +233,6 @@
           <!-- for testing -->
           <warSourceDirectory>${project.build.directory}/external-resources</warSourceDirectory>
         </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M3</version>
       </plugin>
     </plugins>
 

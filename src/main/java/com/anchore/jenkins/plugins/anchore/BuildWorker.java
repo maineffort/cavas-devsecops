@@ -615,7 +615,7 @@ public class BuildWorker {
             bw.write(securityJson.toString());
           }
 
-          // also write the vulnerabilities to the database
+          //Write the Vulnerabilities to the database as well
           (new VulnerabilityDAO()).writeVulnerabilitiesFromJson(securityJson);
         } catch (IOException | InterruptedException e) {
           console.logWarn("Failed to write vulnerability listing to " + jenkinsQueryOutputFP.getRemote(), e);
