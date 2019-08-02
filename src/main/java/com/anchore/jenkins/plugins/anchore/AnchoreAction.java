@@ -73,7 +73,7 @@ public class AnchoreAction implements SimpleBuildStep.LastBuildAction {
 
   @Override
   public String getIconFileName() {
-    return Jenkins.RESOURCE_PATH + "/plugin/anchore-container-scanner/images/anchore.png";
+    return Jenkins.RESOURCE_PATH + "/plugin/anchore-container-scanner/images/cavas_logo.png";
   }
 
   @Override
