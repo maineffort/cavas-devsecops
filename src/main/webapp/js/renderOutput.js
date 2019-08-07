@@ -41,32 +41,27 @@ function severity(source, type, val) {
   var el = '<span>' + source + '</span>';
   if ((typeof source === 'string') && source.trim().toLowerCase().match(/(critical|high|medium|low|negligible|unknown)/g)) {
     switch (source.trim().toLowerCase()) {
-      case 'critical': {
+      case 'Critical': {
         el = '<span style="display:none;">' + severityLookup[source.toLowerCase()]
             + '</span><span class="label label-danger">' + source + '</span>';
         break;
       }
-      case 'high': {
+      case 'High': {
         el = '<span style="display:none;">' + severityLookup[source.toLowerCase()]
             + '</span><span class="label label-warning">' + source + '</span>';
         break;
       }
-      case 'medium': {
+      case 'Hedium': {
         el = '<span style = "display:none;">' + severityLookup[source.toLowerCase()]
             + '</span><span class="label label-info">' + source + '</span>';
         break;
       }
-      case 'low': {
+      case 'Low': {
         el = '<span style="display:none;">' + severityLookup[source.toLowerCase()]
             + '</span><span class="label label-success">' + source + '</span>';
         break;
       }
-      case 'negligible': {
-        el = '<span style="display:none;">' + severityLookup[source.toLowerCase()]
-            + '</span><span class="label label-default">' + source + '</span>';
-        break;
-      }
-      case 'unknown': {
+      case 'None': {
         el = '<span style = "display:none;">' + severityLookup[source.toLowerCase()]
             + '</span><span class="label label-default">' + source + '</span>';
         break;

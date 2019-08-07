@@ -2,6 +2,7 @@ package com.anchore.jenkins.plugins.anchore;
 
 import com.anchore.jenkins.plugins.anchore.Util.GATE_ACTION;
 import com.anchore.jenkins.plugins.anchore.Util.GATE_SUMMARY_COLUMN;
+import com.anchore.jenkins.plugins.anchore.model.ImageVulnerability;
 import com.google.common.base.Strings;
 import com.google.common.base.Joiner;
 import hudson.AbortException;
@@ -79,6 +80,7 @@ public class BuildWorker {
   private String buildId;
   private String jenkinsOutputDirName;
   private Map<String, String> queryOutputMap; // TODO rename
+  private boolean writeToDatabase = true;
   private Map<String, String> input_image_dfile = new LinkedHashMap<>();
   private Map<String, String> input_image_imageDigest = new LinkedHashMap<>();
   private String gateOutputFileName;
@@ -228,7 +230,8 @@ public class BuildWorker {
 
         try (CloseableHttpClient httpclient = makeHttpClient(sslverify)) {
           // Prep POST request
-          String theurl = config.getEngineurl().replaceAll("/+$", "") + "/images";
+          String engineurl = config.getEngineurl().replaceAll("/+$", "");
+          String theurl = engineurl + "/images";
 
           // Disable autosubscribe if necessary
           if (!config.getAutoSubscribeTagUpdates()){
@@ -288,6 +291,8 @@ public class BuildWorker {
               imageDigest = JSONObject.fromObject(respJson.get(0)).getString("imageDigest");
               console.logInfo("Analysis request accepted, received image digest " + imageDigest);
               input_image_imageDigest.put(tag, imageDigest);
+              if (!AnchoreAPIClient.imageAnalyzedBefore(imageDigest, engineurl, context, httpclient))
+                  writeToDatabase = true;
             }
           } catch (Throwable e) {
             throw e;
@@ -610,13 +615,19 @@ public class BuildWorker {
         FilePath jenkinsOutputDirFP = new FilePath(workspace, jenkinsOutputDirName);
         FilePath jenkinsQueryOutputFP = new FilePath(jenkinsOutputDirFP, cveListingFileName);
         try {
+          //correlate vulnerabilities with the HPI VulnDB
+          List<ImageVulnerability> vulnerabilities = VulnerabilityCorrelator.correlateVulnerabilitiesFromJson(securityJson);
+
+
+          //Write the Vulnerabilities to the database as well
+          if (writeToDatabase)
+            new VulnerabilityDAO().writeVulnerabilitiesFromJson(securityJson);
+
+          // archive the json files
           console.logDebug("Writing vulnerability listing result to " + jenkinsQueryOutputFP.getRemote());
           try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(jenkinsQueryOutputFP.write(), StandardCharsets.UTF_8))) {
             bw.write(securityJson.toString());
           }
-
-          //Write the Vulnerabilities to the database as well
-          (new VulnerabilityDAO()).writeVulnerabilitiesFromJson(securityJson);
         } catch (IOException | InterruptedException e) {
           console.logWarn("Failed to write vulnerability listing to " + jenkinsQueryOutputFP.getRemote(), e);
           throw new AbortException("Failed to write vulnerability listing to " + jenkinsQueryOutputFP.getRemote());
