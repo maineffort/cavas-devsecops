@@ -11,7 +11,7 @@ const severityLookup = {
   low: 3,
   negligible: 4,
   unknown: 5
-}
+};
 
 function gateAction(source, type, val) {
   var el = '<span>' + source + '</span>';
@@ -216,7 +216,7 @@ function buildSecurityTable(tableId, outputFile) {
         order: [[2, 'asc'], [0, 'asc']],
         columnDefs: [
           {
-            targets: 2,
+            targets: 3,
             render: severity
           }
         ]

@@ -3,6 +3,8 @@ package com.anchore.jenkins.plugins.anchore;
 import com.anchore.jenkins.plugins.anchore.Util.GATE_ACTION;
 import com.anchore.jenkins.plugins.anchore.Util.GATE_SUMMARY_COLUMN;
 import com.anchore.jenkins.plugins.anchore.model.ImageVulnerability;
+import com.anchore.jenkins.plugins.anchore.model.security.AnchoreVulnerabilities;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.base.Joiner;
 import hudson.AbortException;
@@ -617,16 +619,17 @@ public class BuildWorker {
         try {
           //correlate vulnerabilities with the HPI VulnDB
           List<ImageVulnerability> vulnerabilities = VulnerabilityCorrelator.correlateVulnerabilitiesFromJson(securityJson);
-
+          AnchoreVulnerabilities anchoreVulnerabilities = new AnchoreVulnerabilities(vulnerabilities);
+          String vulnerabilitiesAsString = new ObjectMapper().writeValueAsString(anchoreVulnerabilities);
 
           //Write the Vulnerabilities to the database as well
           if (writeToDatabase)
-            new VulnerabilityDAO().writeVulnerabilitiesFromJson(securityJson);
+            new VulnerabilityDAO().writeVulnerabilities(vulnerabilities);
 
           // archive the json files
           console.logDebug("Writing vulnerability listing result to " + jenkinsQueryOutputFP.getRemote());
           try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(jenkinsQueryOutputFP.write(), StandardCharsets.UTF_8))) {
-            bw.write(securityJson.toString());
+            bw.write(vulnerabilitiesAsString);
           }
         } catch (IOException | InterruptedException e) {
           console.logWarn("Failed to write vulnerability listing to " + jenkinsQueryOutputFP.getRemote(), e);

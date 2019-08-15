@@ -578,7 +578,7 @@ public class AnchoreBuilder extends Builder implements SimpleBuildStep {
 
     @Override
     public String getDisplayName() {
-      return "Anchore Container Image Scanner";
+      return "Cavas Anchore Container Image Scanner";
     }
 
     @Override

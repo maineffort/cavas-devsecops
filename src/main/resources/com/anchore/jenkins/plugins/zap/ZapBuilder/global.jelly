@@ -1,0 +1,16 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+
+  <f:section title="Cavas OWASP ZAP Plugin">
+
+      <f:entry title="Eureka Server URL" field="eurekaServer">
+        <f:textbox name="eurekaServer" default="http://your_eureka_host_ip:your_eureka_port"/>
+      </f:entry>
+
+      <f:entry title="Timeout in seconds" field="timeout">
+        <f:textbox name="timeout" default="300"/>
+      </f:entry>
+
+  </f:section>
+
+</j:jelly>
