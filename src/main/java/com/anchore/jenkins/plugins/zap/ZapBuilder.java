@@ -38,6 +38,8 @@ public class ZapBuilder extends Builder implements SimpleBuildStep {
         if (Strings.isNullOrEmpty(server))
             server = globalConfig.getEurekaServer();
 
+        String commitId = GitReader.getCurrentCommitId(filePath);
+
         console.logInfo("Started Cavas ZAP Plugin with Eureka server: " + server + " timeout: " + globalConfig.getTimeout());
     }
 

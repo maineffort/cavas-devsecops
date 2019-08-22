@@ -39,7 +39,7 @@ function gateAction(source, type, val) {
 
 function severity(source, type, val) {
   var el = '<span>' + source + '</span>';
-  if ((typeof source === 'string') && source.trim().toLowerCase().match(/(critical|high|medium|low|negligible|unknown)/g)) {
+  if ((typeof source === 'string') && source.trim().toLowerCase().match(/(Critical|High|Medium|Low|None|Unknown)/g)) {
     switch (source.trim().toLowerCase()) {
       case 'Critical': {
         el = '<span style="display:none;">' + severityLookup[source.toLowerCase()]
@@ -51,7 +51,7 @@ function severity(source, type, val) {
             + '</span><span class="label label-warning">' + source + '</span>';
         break;
       }
-      case 'Hedium': {
+      case 'Medium': {
         el = '<span style = "display:none;">' + severityLookup[source.toLowerCase()]
             + '</span><span class="label label-info">' + source + '</span>';
         break;
