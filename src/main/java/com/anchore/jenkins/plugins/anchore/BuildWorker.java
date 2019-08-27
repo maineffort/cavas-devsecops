@@ -21,12 +21,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.sql.SQLException;
+import java.util.*;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
@@ -82,7 +78,6 @@ public class BuildWorker {
   private String buildId;
   private String jenkinsOutputDirName;
   private Map<String, String> queryOutputMap; // TODO rename
-  private boolean writeToDatabase = true;
   private Map<String, String> input_image_dfile = new LinkedHashMap<>();
   private Map<String, String> input_image_imageDigest = new LinkedHashMap<>();
   private String gateOutputFileName;
@@ -293,8 +288,6 @@ public class BuildWorker {
               imageDigest = JSONObject.fromObject(respJson.get(0)).getString("imageDigest");
               console.logInfo("Analysis request accepted, received image digest " + imageDigest);
               input_image_imageDigest.put(tag, imageDigest);
-              if (!AnchoreAPIClient.imageAnalyzedBefore(imageDigest, engineurl, context, httpclient))
-                  writeToDatabase = true;
             }
           } catch (Throwable e) {
             throw e;
@@ -561,70 +554,86 @@ public class BuildWorker {
       context.setCredentialsProvider(credsProvider);
 
       try {
-        JSONObject securityJson = new JSONObject();
+        List<ImageVulnerability> finalVulnerabilities = new LinkedList<>();
         JSONArray columnsJson = new JSONArray();
         for (String column : Arrays.asList("Tag", "CVE ID", "Severity", "Vulnerability Package", "Fix Available", "URL")) {
           JSONObject columnJson = new JSONObject();
           columnJson.put("title", column);
           columnsJson.add(columnJson);
         }
-        JSONArray dataJson = new JSONArray();
 
         for (Map.Entry<String, String> entry : input_image_imageDigest.entrySet()) {
           String input = entry.getKey();
           String digest = entry.getValue();
 
-          try (CloseableHttpClient httpclient = makeHttpClient(sslverify)) {
-            console.logInfo("Querying vulnerability listing for " + input);
-            String theurl = config.getEngineurl().replaceAll("/+$", "") + "/images/" + digest + "/vuln/all";
-            HttpGet httpget = new HttpGet(theurl);
-            httpget.addHeader("Content-Type", "application/json");
+          if (!Database.hasImageBeenAnalyzedBefore(input, digest)) {
+            // query the anchore engine
+            try (CloseableHttpClient httpclient = makeHttpClient(sslverify)) {
+              console.logInfo("Querying vulnerability listing for " + input);
+              String theurl = config.getEngineurl().replaceAll("/+$", "") + "/images/" + digest + "/vuln/all";
+              HttpGet httpget = new HttpGet(theurl);
+              httpget.addHeader("Content-Type", "application/json");
 
-            console.logDebug("anchore-engine get vulnerability listing URL: " + theurl);
-            try (CloseableHttpResponse response = httpclient.execute(httpget, context)) {
-              int statusCode = response.getStatusLine().getStatusCode();
-              if (statusCode != 200) {
-                String serverMessage = EntityUtils.toString(response.getEntity());
-                console.logWarn(
-                    "anchore-engine get vulnerability listing failed. URL: " + theurl + ", status: " + response.getStatusLine()
-                        + ", error: " + serverMessage);
-                throw new AbortException("Failed to fetch vulnerability listing from anchore-engine");
-              } else {
-                String responseBody = EntityUtils.toString(response.getEntity());
-                JSONObject responseJson = JSONObject.fromObject(responseBody);
-                JSONArray vulList = responseJson.getJSONArray("vulnerabilities");
-                for (int i = 0; i < vulList.size(); i++) {
-                  JSONObject vulnJson = vulList.getJSONObject(i);
-                  JSONArray vulnArray = new JSONArray();
-                  vulnArray.addAll(Arrays
-                      .asList(input, vulnJson.getString("vuln"), vulnJson.getString("severity"), vulnJson.getString("package"),
-                          vulnJson.getString("fix"),
-                          "<a href='" + vulnJson.getString("url") + "'>" + vulnJson.getString("url") + "</a>"));
-                  dataJson.add(vulnArray);
+              console.logDebug("anchore-engine get vulnerability listing URL: " + theurl);
+              try (CloseableHttpResponse response = httpclient.execute(httpget, context)) {
+                int statusCode = response.getStatusLine().getStatusCode();
+                if (statusCode != 200) {
+                  String serverMessage = EntityUtils.toString(response.getEntity());
+                  console.logWarn(
+                          "anchore-engine get vulnerability listing failed. URL: " + theurl + ", status: " + response.getStatusLine()
+                                  + ", error: " + serverMessage);
+                  throw new AbortException("Failed to fetch vulnerability listing from anchore-engine");
+                } else {
+                  JSONObject securityJson = new JSONObject();
+                  JSONArray dataJson = new JSONArray();
+
+                  String responseBody = EntityUtils.toString(response.getEntity());
+                  JSONObject responseJson = JSONObject.fromObject(responseBody);
+                  JSONArray vulList = responseJson.getJSONArray("vulnerabilities");
+                  for (int i = 0; i < vulList.size(); i++) {
+                    JSONObject vulnJson = vulList.getJSONObject(i);
+                    JSONArray vulnArray = new JSONArray();
+                    vulnArray.addAll(Arrays
+                            .asList(input, vulnJson.getString("vuln"), vulnJson.getString("severity"), vulnJson.getString("package"),
+                                    vulnJson.getString("fix"),
+                                    "<a href='" + vulnJson.getString("url") + "'>" + vulnJson.getString("url") + "</a>"));
+                    dataJson.add(vulnArray);
+                  }
+
+                  securityJson.put("columns", columnsJson);
+                  securityJson.put("data", dataJson);
+
+                  // correlate the vulnerabilities and write them to the database
+                  List<ImageVulnerability> vulnerabilities = VulnerabilityCorrelator.correlateVulnerabilitiesFromJson(securityJson, digest);
+                  finalVulnerabilities.addAll(vulnerabilities);
+                  Database.writeVulnerabilities(vulnerabilities);
                 }
+
+              } catch (Throwable t) {
+                throw t;
               }
             } catch (Throwable t) {
               throw t;
             }
-          } catch (Throwable t) {
-            throw t;
+
+          } else {
+            // get the vulnerabilities already found from the database
+            try {
+              List<ImageVulnerability> vulnerabilities = Database.getVulnerabilitiesOfImage(input, digest);
+              finalVulnerabilities.addAll(vulnerabilities);
+            } catch (SQLException e) {
+              e.printStackTrace();
+            }
           }
         }
-        securityJson.put("columns", columnsJson);
-        securityJson.put("data", dataJson);
 
         cveListingFileName = CVE_LISTING_PREFIX + JSON_FILE_EXTENSION;
         FilePath jenkinsOutputDirFP = new FilePath(workspace, jenkinsOutputDirName);
         FilePath jenkinsQueryOutputFP = new FilePath(jenkinsOutputDirFP, cveListingFileName);
         try {
-          //correlate vulnerabilities with the HPI VulnDB
-          List<ImageVulnerability> vulnerabilities = VulnerabilityCorrelator.correlateVulnerabilitiesFromJson(securityJson);
-          AnchoreVulnerabilities anchoreVulnerabilities = new AnchoreVulnerabilities(vulnerabilities);
+          //serialize the vulnerabilities to json
+          AnchoreVulnerabilities anchoreVulnerabilities = new AnchoreVulnerabilities(finalVulnerabilities);
           String vulnerabilitiesAsString = new ObjectMapper().writeValueAsString(anchoreVulnerabilities);
-
-          //Write the Vulnerabilities to the database as well
-          if (writeToDatabase)
-            new VulnerabilityDAO().writeVulnerabilities(vulnerabilities);
 
           // archive the json files
           console.logDebug("Writing vulnerability listing result to " + jenkinsQueryOutputFP.getRemote());

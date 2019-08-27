@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>2.33</version>
+    <version>3.43</version>
     <relativePath />
   </parent>
 
@@ -83,12 +83,12 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>structs</artifactId>
-      <version>1.7</version>
+      <version>1.10</version>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient</artifactId>
-      <version>4.5.3</version>
+      <version>4.5.9</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
@@ -124,6 +124,11 @@
       <groupId>org.eclipse.jgit</groupId>
       <artifactId>org.eclipse.jgit</artifactId>
       <version>3.5.0.201409260305-r</version>
+    </dependency>
+    <dependency>
+      <groupId>com.j256.ormlite</groupId>
+      <artifactId>ormlite-jdbc</artifactId>
+      <version>5.1</version>
     </dependency>
 
   </dependencies>
@@ -231,6 +236,7 @@
           </webResources>
           <!-- for testing -->
           <warSourceDirectory>${project.build.directory}/external-resources</warSourceDirectory>
+          <minimumJavaVersion/>
         </configuration>
       </plugin>
     </plugins>
