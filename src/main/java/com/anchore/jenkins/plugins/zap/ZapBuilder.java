@@ -1,6 +1,9 @@
 package com.anchore.jenkins.plugins.zap;
 
 import com.anchore.jenkins.plugins.anchore.ConsoleLog;
+import com.anchore.jenkins.plugins.zap.model.Alert;
+import com.anchore.jenkins.plugins.zap.model.json.ZapAlerts;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import hudson.Extension;
 import hudson.FilePath;
@@ -8,6 +11,7 @@ import hudson.Launcher;
 import hudson.model.AbstractProject;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.tasks.ArtifactArchiver;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import jenkins.tasks.SimpleBuildStep;
@@ -18,12 +22,20 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.StaplerRequest;
 
 import javax.annotation.Nonnull;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 public class ZapBuilder extends Builder implements SimpleBuildStep {
-    private String server = null;
+    static String outputDirName = "zapReport";
+    static String alertsFileName = "alerts.json";
 
+    private String server = null;
     private boolean enableDebug = false;
+
+    private ConsoleLog console;
 
     @DataBoundConstructor
     public ZapBuilder(String server) {
@@ -31,9 +43,11 @@ public class ZapBuilder extends Builder implements SimpleBuildStep {
     }
 
     @Override
-    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
-        ConsoleLog console = new ConsoleLog("AnchorePlugin", taskListener.getLogger(), enableDebug);
+    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
+        console = new ConsoleLog("AnchorePlugin", taskListener.getLogger(), enableDebug);
         DescriptorImpl globalConfig = (DescriptorImpl)getDescriptor();
+
+        console.logInfo("Started Cavas ZAP Plugin with Eureka server: " + server + " timeout: " + globalConfig.getTimeout());
 
         if (Strings.isNullOrEmpty(server))
             server = globalConfig.getEurekaServer();
@@ -42,12 +56,31 @@ public class ZapBuilder extends Builder implements SimpleBuildStep {
         try { timeout = Integer.valueOf(globalConfig.timeout); }
         catch (NumberFormatException e) { timeout = 10; }
 
-        //String commitId = GitReader.getCurrentCommitId(filePath);
-
+        //String commitId = GitReader.getCurrentCommitId(workspace);
         String commitId = "9bb46bf";
-        new EurekaClient(commitId, server, console).runAnalysis(timeout);
 
-        console.logInfo("Started Cavas ZAP Plugin with Eureka server: " + server + " timeout: " + globalConfig.getTimeout());
+        EurekaClient client = new EurekaClient(commitId, server, console);
+        client.runAnalysis(timeout);
+
+        archiveAlerts(client.getAlerts(), run, workspace, launcher, taskListener);
+    }
+
+    private void archiveAlerts(List<Alert> alerts, Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener taskListener) throws IOException, InterruptedException{
+        if (alerts !=  null) {
+            ZapAlerts zapAlerts = new ZapAlerts(alerts);
+
+            String alertsLocation = outputDirName + "/" + alertsFileName;
+            FilePath outputFile = new FilePath(workspace, alertsLocation);
+            try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(outputFile.write(), StandardCharsets.UTF_8))) {
+                bw.write(new ObjectMapper().writeValueAsString(zapAlerts));
+            }
+
+            console.logInfo("Archiving results");
+            ArtifactArchiver artifactArchiver = new ArtifactArchiver(outputDirName + "/");
+            artifactArchiver.perform(run, workspace, launcher, taskListener);
+
+            run.addAction(new ZapAction(run, alertsLocation, "PASS"));
+        }
     }
 
     @Symbol("zap") // For Jenkins pipeline workflow. This lets pipeline refer to step using the defined identifier

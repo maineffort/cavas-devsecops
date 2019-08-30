@@ -39,29 +39,29 @@ function gateAction(source, type, val) {
 
 function severity(source, type, val) {
   var el = '<span>' + source + '</span>';
-  if ((typeof source === 'string') && source.trim().toLowerCase().match(/(Critical|High|Medium|Low|None|Unknown)/g)) {
+  if ((typeof source === 'string') && source.trim().toLowerCase().match(/(critical|high|medium|low|none|unknown)/g)) {
     switch (source.trim().toLowerCase()) {
-      case 'Critical': {
+      case 'critical': {
         el = '<span style="display:none;">' + severityLookup[source.toLowerCase()]
             + '</span><span class="label label-danger">' + source + '</span>';
         break;
       }
-      case 'High': {
+      case 'high': {
         el = '<span style="display:none;">' + severityLookup[source.toLowerCase()]
             + '</span><span class="label label-warning">' + source + '</span>';
         break;
       }
-      case 'Medium': {
+      case 'medium': {
         el = '<span style = "display:none;">' + severityLookup[source.toLowerCase()]
             + '</span><span class="label label-info">' + source + '</span>';
         break;
       }
-      case 'Low': {
+      case 'low': {
         el = '<span style="display:none;">' + severityLookup[source.toLowerCase()]
             + '</span><span class="label label-success">' + source + '</span>';
         break;
       }
-      case 'None': {
+      case 'none': {
         el = '<span style = "display:none;">' + severityLookup[source.toLowerCase()]
             + '</span><span class="label label-default">' + source + '</span>';
         break;
@@ -223,4 +223,16 @@ function buildSecurityTable(tableId, outputFile) {
       });
     });
   });
+}
+
+function buildAlertsTable(tableId, outputFile) {
+    jQuery.getJSON(outputFile, function (tableObj) {
+        jQuery(document).ready(function () {
+            jQuery(tableId).DataTable({
+                retrieve: true,
+                data: tableObj.data,
+                columns: tableObj.columns
+            });
+        });
+    });
 }

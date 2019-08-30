@@ -7,19 +7,30 @@ import com.anchore.jenkins.plugins.zap.model.Status;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hudson.AbortException;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import hudson.tasks.ArtifactArchiver;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 
+import javax.annotation.Nonnull;
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class EurekaClient {
     private String commitId;
     private String serverUrl;
     private ConsoleLog console;
+    List<Alert> alerts;
 
     private interface Condition {
         boolean evaluate(HttpResponse response) throws AbortException;
@@ -95,9 +106,10 @@ public class EurekaClient {
             return false;
         }, statusUrl, timeout);
 
-        // TODO: archive the alerts
+        // query the alerts
+        console.logInfo("Retrieving alerts");
         String alertsUrl = String.format("/app/%s/alerts", commitId);
-        List<Alert> alerts = parseToJson(requestOn(alertsUrl), new TypeReference<List<Alert>>(){});
+        alerts = parseToJson(requestOn(alertsUrl), new TypeReference<List<Alert>>(){});
 
         // query the result
         console.logInfo("Querying the result");
@@ -106,5 +118,9 @@ public class EurekaClient {
 
         if (!result.result.equals("success"))
             throw new AbortException(String.format("FAILING due to scan result: '%s', message: '%s'", result.result, result.message));
+    }
+
+    public List<Alert> getAlerts() {
+        return alerts;
     }
 }
