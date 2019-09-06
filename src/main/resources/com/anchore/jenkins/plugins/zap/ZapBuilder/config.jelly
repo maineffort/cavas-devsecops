@@ -6,6 +6,9 @@
       <f:entry title="Eureka Server URL (Overwrite global configuration)" field="server">
         <f:textbox name="server" default=""/>
       </f:entry>
+      <f:entry title="Git Commit ID" field="gitCommitId">
+        <f:textbox name="gitCommitId" default=""/>
+      </f:entry>
 
   </f:section>
 

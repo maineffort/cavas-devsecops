@@ -32,34 +32,34 @@ public class ZapBuilder extends Builder implements SimpleBuildStep {
     static String outputDirName = "zapReport";
     static String alertsFileName = "alerts.json";
 
-    private String server = null;
+    private String server;
+    private String gitCommitId;
     private boolean enableDebug = false;
 
     private ConsoleLog console;
 
-    @DataBoundConstructor
-    public ZapBuilder(String server) {
+    @DataBoundSetter
+    public void setServer(String server) {
         this.server = server;
+    }
+
+    @DataBoundConstructor
+    public ZapBuilder(String gitCommitId) {
+        this.gitCommitId = gitCommitId;
     }
 
     @Override
     public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
         console = new ConsoleLog("AnchorePlugin", taskListener.getLogger(), enableDebug);
         DescriptorImpl globalConfig = (DescriptorImpl)getDescriptor();
-
-        console.logInfo("Started Cavas ZAP Plugin with Eureka server: " + server + " timeout: " + globalConfig.getTimeout());
-
         if (Strings.isNullOrEmpty(server))
             server = globalConfig.getEurekaServer();
+        gitCommitId = gitCommitId.substring(0, 7);
 
-        int timeout;
-        try { timeout = Integer.valueOf(globalConfig.timeout); }
-        catch (NumberFormatException e) { timeout = 10; }
+        console.logInfo("Started Cavas ZAP Plugin with Eureka server: " + server + " timeout: " + globalConfig.getTimeout() + " commit-ID: " + gitCommitId);
 
-        //String commitId = GitReader.getCurrentCommitId(workspace);
-        String commitId = "9bb46bf";
-
-        EurekaClient client = new EurekaClient(commitId, server, console);
+        int timeout = globalConfig.getTimeoutAsNumber();
+        EurekaClient client = new EurekaClient(gitCommitId, server, console);
         client.runAnalysis(timeout);
 
         archiveAlerts(client.getAlerts(), run, workspace, launcher, taskListener);
@@ -88,6 +88,7 @@ public class ZapBuilder extends Builder implements SimpleBuildStep {
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
         private String eurekaServer;
         private String timeout;
+        private int timeoutNumber;
 
         private int DEFAULT_TIMEOUT = 300;
 
@@ -96,6 +97,8 @@ public class ZapBuilder extends Builder implements SimpleBuildStep {
         }
 
         public String getTimeout() {
+            if (timeout == null)
+                return String.valueOf(DEFAULT_TIMEOUT);
             return timeout;
         }
 
