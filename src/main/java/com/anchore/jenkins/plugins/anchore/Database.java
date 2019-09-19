@@ -15,7 +15,7 @@ import java.util.List;
 
 public class Database {
     private static Dao<ImageVulnerability, Integer> dao;
-    private static String url = "jdbc:mysql://172.20.8.217:3306/cavas_slingshot?serverTimezone=Europe/Berlin";
+    private static String url = "jdbc:mysql://172.20.8.217:3306/cavas_alerts?serverTimezone=Europe/Berlin";
     private static String username = "cloudlogs";
     private static String password = "cloudlogs";
 
