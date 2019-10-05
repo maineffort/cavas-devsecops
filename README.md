@@ -1,4 +1,4 @@
-This project improves on an earlier project, by directly integrating security testing into a CI/CD pipeline via Jenkins.
+This project improves on an earlier project (https://github.com/maineffort/cavas-security-gateway), by directly integrating security testing into a CI/CD pipeline via Jenkins.
 The flexible Jenkins plugins ecosystem is exploited to enable docker image testing and application testing for microservices.
 Test results are stored in a database for further risk analysis. 
 
